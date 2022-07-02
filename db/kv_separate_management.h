@@ -17,10 +17,10 @@ namespace leveldb {
     // 用来gc回收的时候，传递信息的作用的。
     typedef struct ValueLogInfo {
         uint64_t last_sequence_;
-        size_t file_size_;        // 文件大小
+        size_t file_size_;                  // 文件大小
         uint64_t logfile_number_;           // 文件编号
-        int left_kv_numbers_;   // 剩下的kv数量
-        uint64_t invalid_memory_;     // value log 中无效的空间大小
+        int left_kv_numbers_;               // 剩下的kv数量
+        uint64_t invalid_memory_;           // value log 中无效的空间大小
     }ValueLogInfo;
 
     struct MapCmp{
