@@ -75,6 +75,7 @@ KVDB
     fillrandom   :       2118.600 micros/op;   472.0 MB/s     
     overwrite    :       2123.194 micros/op;   471.0 MB/s
 
+
 ### 读性能
 
 leveldb
@@ -97,7 +98,13 @@ KVDB
   readseq      :       0.653 micros/op;   36.4 MB/s
   fill100K     :     12432.440 micros/op;  7.7 MB/s (1000 ops)
 
-### Build for POSIX
+### 分析：
+1. 对于大value的场景下，kv分离以后，mem, imm, sst中存储的kv对数更多，内存中可缓存的sst也更多了，从概率上看，在内存中找到所需要的key的概率更大。
+2. 访问一个sst，可以跳过的kv对数更多，查找的也就更快。更大概率减少了无效的查找。
+
+# make & run
+
+## Build for POSIX
 
 Quick start:
 
@@ -106,7 +113,7 @@ mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build .
 ```
 
-### Building for Windows
+## Building for Windows
 
 First generate the Visual Studio 2017 project/solution files:
 
@@ -132,7 +139,7 @@ or open leveldb.sln in Visual Studio and build from within.
 Please see the CMake documentation and `CMakeLists.txt` for more advanced usage.
 
 
-## Repository contents
+# Repository contents
 
 See [doc/index.md](doc/index.md) for more explanation. See
 [doc/impl.md](doc/impl.md) for a brief overview of the implementation.
