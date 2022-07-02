@@ -104,7 +104,8 @@ KVDB
 1. 对于大value的场景下，kv分离以后，mem, imm, sst中存储的kv对数更多，内存中可缓存的sst也更多了，从概率上看，在内存中找到所需要的key的概率更大。
 2. 访问一个sst，可以跳过的kv对数更多，查找的也就更快。更大概率减少了无效的查找。
 
-# make & run
+# MAKE && RUN
+
 ## Build for POSIX
 
 Quick start:
