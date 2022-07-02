@@ -33,16 +33,17 @@
           offset:         uint64        // 这个kv对的起始位置在log中的偏移，方便get的时候读取，采用随机读取方式
           kv_value_size:  uint64        // 指record中第一个kv对开始到该kv对的偏移
 
-![image](https://github.com/Buildings-Lei/kv-separate/images/format.png)
+![image](https://github.com/Buildings-Lei/kv-separate/blob/main/image/format.png)
 
 # 写流程
-    在原本leveldb的基础上加上了value的大小判断，若是大于设定的阈值，将会进行kv分离，写入batch中。 若是小于阈值，则将会按照leveldb中原本的方式进行存储。
+在原本leveldb的基础上加上了value的大小判断，若是大于设定的阈值，将会进行kv分离，
+写入batch中。 若是小于阈值，则将会按照leveldb中原本的方式进行存储。
   
 # 读流程
-    先从mem，imm和LSM 中查找到key值对应的value的值，解析出来后，若是已经kv分离的话，value保存的是log文件编号，偏移地址，以及value的大小。查找到的值若是不分离的，直接返回，若是分离的，则需要根据value的值，进一步去log文件中查找。
+先从mem，imm和LSM 中查找到key值对应的value的值，解析出来后，若是已经kv分离的话，value保存的是log文件编号，偏移地址，以及value的大小。查找到的值若是不分离的，直接返回，若是分离的，则需要根据value的值，进一步去log文件中查找。
 
 # garbage collection 
-    创建一个独立后台线程，对需删除的vlog文件中的无效 kv 进行删除，有效 kv重新存储到数据库中。利用管理类决定哪些vlog文件需删除。重新存储方案：为保证 有效 kv 重新存储的正确性，不影响后续 kv 对的正确存储，采用预分配时间序列的策略，在具体回收前，先为其分配一段不影响查找准确性的seq给有效kv对。
+创建一个独立后台线程，对需删除的vlog文件中的无效 kv 进行删除，有效 kv重新存储到数据库中。利用管理类决定哪些vlog文件需删除。重新存储方案：为保证 有效 kv 重新存储的正确性，不影响后续 kv 对的正确存储，采用预分配时间序列的策略，在具体回收前，先为其分配一段不影响查找准确性的seq给有效kv对。
 # 性能测试
 
  ## 测试环境
@@ -62,13 +63,13 @@ This project supports [CMake](https://cmake.org/) out of the box.
 
 ### 写性能
 
- leveldb
+leveldb
  
     fillseq      :       5.549 micros/op;   19.9 MB/s     
     fillrandom   :      11.597 micros/op;    9.5 MB/s     
     overwrite    :      14.144 micros/op;    7.8 MB/s
  
- KVDB
+KVDB
  
     fillseq      :       2069.794 micros/op;   483.1 MB/s     
     fillrandom   :       2118.600 micros/op;   472.0 MB/s     
