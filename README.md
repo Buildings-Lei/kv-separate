@@ -1,39 +1,48 @@
-**LevelDB is a fast key-value storage library written at Google that provides an ordered mapping from string keys to string values.**
+**LevelDB is a fast key-value storage library written at Google that provides an ordered mapping from string keys to string values. KVDB is a key-value storage library base on leveldb, we separate the value and key when it is needed**
 
-[![Build Status](https://travis-ci.org/google/leveldb.svg?branch=master)](https://travis-ci.org/google/leveldb)
-[![Build status](https://ci.appveyor.com/api/projects/status/g2j5j4rfkda6eyw5/branch/master?svg=true)](https://ci.appveyor.com/project/pwnall/leveldb)
 
-Authors: Sanjay Ghemawat (sanjay@google.com) and Jeff Dean (jeff@google.com)
+# 特点
+  * keys 和 value 的分离可根据阈值进行动态的分离，即在KVDB中，可实时的根据不同的业务需求进行分离阈值的调整。
+  * 对于小于阈值的key-value 对，并没有进行分离，而是采用leveldb一样的存放的方式，都是放入sst当中。
+  * 在leveldb的基础上增加了垃圾回收的机制，垃圾回收的线程在后台进行，KVDB运行的线程的优先级是 主线程 > Compact 线程 > 后台垃圾回收线程。
+  * 垃圾回收支持自动在线回收和手动回收，同时在打开数据的时候也可选择是否要进行垃圾回收。
+  * 若是没有开启在线垃圾回收，将支持快照，若是在数据库运行期间发生了快照，那么快照以后的数据都不进行垃圾回收。
+  * 可进行手动设置 每一个valuelog的大小。
+  * levelDB 具有写放大和读放大，KVDB 因为kv分离了，可减少写放大和读放大，提高运行的效率。
 
-# Features
+# 数据组织形式
+  *    record :=
+  *    checksum: uint32     // crc32c of type and data[] ; little-endian
+  *    length: uint16       // record的长度
+  *    Sequence: uint64     // record 中的第一对kv所对应的sequence
+  *    kv Number：uint16    // 这个record 中所具有的kv对的数量 
+  *    data:               //  保存的数据
 
-  * Keys and values are arbitrary byte arrays.
-  * Data is stored sorted by key.
-  * Callers can provide a custom comparison function to override the sort order.
-  * The basic operations are `Put(key,value)`, `Get(key)`, `Delete(key)`.
-  * Multiple changes can be made in one atomic batch.
-  * Users can create a transient snapshot to get a consistent view of data.
-  * Forward and backward iteration is supported over the data.
-  * Data is automatically compressed using the [Snappy compression library](https://google.github.io/snappy/).
-  * External activity (file system operations etc.) is relayed through a virtual interface so users can customize the operating system interactions.
+* log中的data 的数据格式为：
+* data：
+*    type:           uint8         // 是否要进行kv分离
+*    keysize:        uint16        // key的长度    
+*    key:                          // key值
+*    valuesize:      uint16        // value 的长度
+*    value:                        // value值
 
-# Documentation
+# 写流程
 
-  [LevelDB library documentation](https://github.com/google/leveldb/blob/master/doc/index.md) is online and bundled with the source code.
+  
 
-# Limitations
+# 读流程
 
   * This is not a SQL database.  It does not have a relational data model, it does not support SQL queries, and it has no support for indexes.
   * Only a single process (possibly multi-threaded) can access a particular database at a time.
   * There is no client-server support builtin to the library.  An application that needs such support will have to wrap their own server around the library.
 
-# Getting the Source
+# garbage collection 
 
 ```bash
 git clone --recurse-submodules https://github.com/google/leveldb.git
 ```
 
-# Building
+# 测试
 
 This project supports [CMake](https://cmake.org/) out of the box.
 
