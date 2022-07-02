@@ -18,13 +18,13 @@
       kv Number：uint16    // 这个record 中所具有的kv对的数量 
       data:                //  保存的数据
 
- log中的data 的数据格式为：
- data：
-    type:           uint8         // 是否要进行kv分离
-    keysize:        uint16        // key的长度    
-    key:                          // key值
-    valuesize:      uint16        // value 的长度
-    value:                        // value值
+      log中的data 的数据格式为：
+      data：
+           type:           uint8         // 是否要进行kv分离
+           keysize:        uint16        // key的长度    
+           key:                          // key值
+           valuesize:      uint16        // value 的长度
+           value:                        // value值
 
 # 写流程
 
