@@ -962,7 +962,7 @@ void DBImpl::BackGroundGarbageCollection(){
     uint64_t fid;
     uint64_t last_sequence;
     while( true){
-        std::cout<<"---------- gc is running --------"<<std::endl;
+        Log(options_.info_log, "garbage collection file number: %lu", fid);
         if( !garbage_colletion_management_->GetGarbageCollectionQueue(fid,last_sequence) ){
             return;
         }
