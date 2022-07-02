@@ -26,25 +26,75 @@
            valuesize:      uint16        // value 的长度
            value:                        // value值
 
+      data中的value的数据格式为：  
+      若是不分离的则value保存的是存入的值，如是需要分离的则保存为以下的格式     
+      value:
+          file number:    uint64        // kv对需要存入的log的编号
+          offset:         uint64        // 这个kv对的起始位置在log中的偏移，方便get的时候读取，采用随机读取方式
+          kv_value_size:  uint64        // 指record中第一个kv对开始到该kv对的偏移
+
+![image](https://github.com/Buildings-Lei/kv-separate/images/format.png)
+
 # 写流程
-
+    在原本leveldb的基础上加上了value的大小判断，若是大于设定的阈值，将会进行kv分离，写入batch中。 若是小于阈值，则将会按照leveldb中原本的方式进行存储。
   
-
 # 读流程
-
-  * This is not a SQL database.  It does not have a relational data model, it does not support SQL queries, and it has no support for indexes.
-  * Only a single process (possibly multi-threaded) can access a particular database at a time.
-  * There is no client-server support builtin to the library.  An application that needs such support will have to wrap their own server around the library.
+    先从mem，imm和LSM 中查找到key值对应的value的值，解析出来后，若是已经kv分离的话，value保存的是log文件编号，偏移地址，以及value的大小。查找到的值若是不分离的，直接返回，若是分离的，则需要根据value的值，进一步去log文件中查找。
 
 # garbage collection 
+    创建一个独立后台线程，对需删除的vlog文件中的无效 kv 进行删除，有效 kv重新存储到数据库中。利用管理类决定哪些vlog文件需删除。重新存储方案：为保证 有效 kv 重新存储的正确性，不影响后续 kv 对的正确存储，采用预分配时间序列的策略，在具体回收前，先为其分配一段不影响查找准确性的seq给有效kv对。
+# 性能测试
 
-```bash
-git clone --recurse-submodules https://github.com/google/leveldb.git
-```
-
-# 测试
+ ## 测试环境
+ 创建一个5万条kv记录的数据库，其中每条记录的key为16个字节，value为 1 M ，分离的阈值为 1 M，不开启snappy压缩，所以写入磁盘的文件大小就是数据的原始大小。
+ 
+    LevelDB:    version 1.23
+    CPU:        8 * AMD Ryzen 7 4800H with Radeon Graphics
+    CPUCache:   512 KB
+    Keys:       16 bytes each
+    Values:     1048576 bytes each (524288 bytes after compression)
+    Entries:    50000
+    Raw Size:   50000.8 MB (estimated)
+    File Size:  25000.8 MB (estimated)
+    WARNING: Snappy compression is not enabled
 
 This project supports [CMake](https://cmake.org/) out of the box.
+
+### 写性能
+
+ leveldb
+ 
+    fillseq      :       5.549 micros/op;   19.9 MB/s     
+    fillrandom   :      11.597 micros/op;    9.5 MB/s     
+    overwrite    :      14.144 micros/op;    7.8 MB/s
+ 
+ KVDB
+ 
+    fillseq      :       2069.794 micros/op;   483.1 MB/s     
+    fillrandom   :       2118.600 micros/op;   472.0 MB/s     
+    overwrite    :       2123.194 micros/op;   471.0 MB/s
+
+### 读性能
+
+leveldb
+
+  readrandom   :       6.219 micros/op; (1000000 of 1000000 found)   
+  readrandom   :       5.026 micros/op; (1000000 of 1000000 found)     
+  readseq      :       0.531 micros/op;  208.4 MB/s
+  compact      : 2189861.000 micros/op;
+  readrandom   :       3.718 micros/op; (1000000 of 1000000 found)
+  readseq      :       0.477 micros/op;  231.7 MB/s
+  fill100K     :    3313.683 micros/op;   28.8 MB/s (1000 ops)
+
+KVDB
+
+  readrandom   :       3926.204 micros/op; (43405 of 50000 found)     
+  readrandom   :       4732.702 micros/op; (43374 of 50000 found)
+  readseq      :       1.285 micros/op;   18.6 MB/s
+  compact      :  218021.000 micros/op;
+  readrandom   :       5023.581 micros/op; (43318 of 50000 found)
+  readseq      :       0.653 micros/op;   36.4 MB/s
+  fill100K     :     12432.440 micros/op;  7.7 MB/s (1000 ops)
 
 ### Build for POSIX
 
@@ -80,124 +130,6 @@ or open leveldb.sln in Visual Studio and build from within.
 
 Please see the CMake documentation and `CMakeLists.txt` for more advanced usage.
 
-# Contributing to the leveldb Project
-
-The leveldb project welcomes contributions. leveldb's primary goal is to be
-a reliable and fast key/value store. Changes that are in line with the
-features/limitations outlined above, and meet the requirements below,
-will be considered.
-
-Contribution requirements:
-
-1. **Tested platforms only**. We _generally_ will only accept changes for
-   platforms that are compiled and tested. This means POSIX (for Linux and
-   macOS) or Windows. Very small changes will sometimes be accepted, but
-   consider that more of an exception than the rule.
-
-2. **Stable API**. We strive very hard to maintain a stable API. Changes that
-   require changes for projects using leveldb _might_ be rejected without
-   sufficient benefit to the project.
-
-3. **Tests**: All changes must be accompanied by a new (or changed) test, or
-   a sufficient explanation as to why a new (or changed) test is not required.
-
-4. **Consistent Style**: This project conforms to the
-   [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html).
-   To ensure your changes are properly formatted please run:
-
-   ```
-   clang-format -i --style=file <file>
-   ```
-
-## Submitting a Pull Request
-
-Before any pull request will be accepted the author must first sign a
-Contributor License Agreement (CLA) at https://cla.developers.google.com/.
-
-In order to keep the commit timeline linear
-[squash](https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Squashing-Commits)
-your changes down to a single commit and [rebase](https://git-scm.com/docs/git-rebase)
-on google/leveldb/master. This keeps the commit timeline linear and more easily sync'ed
-with the internal repository at Google. More information at GitHub's
-[About Git rebase](https://help.github.com/articles/about-git-rebase/) page.
-
-# Performance
-
-Here is a performance report (with explanations) from the run of the
-included db_bench program.  The results are somewhat noisy, but should
-be enough to get a ballpark performance estimate.
-
-## Setup
-
-We use a database with a million entries.  Each entry has a 16 byte
-key, and a 100 byte value.  Values used by the benchmark compress to
-about half their original size.
-
-    LevelDB:    version 1.1
-    Date:       Sun May  1 12:11:26 2011
-    CPU:        4 x Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz
-    CPUCache:   4096 KB
-    Keys:       16 bytes each
-    Values:     100 bytes each (50 bytes after compression)
-    Entries:    1000000
-    Raw Size:   110.6 MB (estimated)
-    File Size:  62.9 MB (estimated)
-
-## Write performance
-
-The "fill" benchmarks create a brand new database, in either
-sequential, or random order.  The "fillsync" benchmark flushes data
-from the operating system to the disk after every operation; the other
-write operations leave the data sitting in the operating system buffer
-cache for a while.  The "overwrite" benchmark does random writes that
-update existing keys in the database.
-
-    fillseq      :       1.765 micros/op;   62.7 MB/s
-    fillsync     :     268.409 micros/op;    0.4 MB/s (10000 ops)
-    fillrandom   :       2.460 micros/op;   45.0 MB/s
-    overwrite    :       2.380 micros/op;   46.5 MB/s
-
-Each "op" above corresponds to a write of a single key/value pair.
-I.e., a random write benchmark goes at approximately 400,000 writes per second.
-
-Each "fillsync" operation costs much less (0.3 millisecond)
-than a disk seek (typically 10 milliseconds).  We suspect that this is
-because the hard disk itself is buffering the update in its memory and
-responding before the data has been written to the platter.  This may
-or may not be safe based on whether or not the hard disk has enough
-power to save its memory in the event of a power failure.
-
-## Read performance
-
-We list the performance of reading sequentially in both the forward
-and reverse direction, and also the performance of a random lookup.
-Note that the database created by the benchmark is quite small.
-Therefore the report characterizes the performance of leveldb when the
-working set fits in memory.  The cost of reading a piece of data that
-is not present in the operating system buffer cache will be dominated
-by the one or two disk seeks needed to fetch the data from disk.
-Write performance will be mostly unaffected by whether or not the
-working set fits in memory.
-
-    readrandom  : 16.677 micros/op;  (approximately 60,000 reads per second)
-    readseq     :  0.476 micros/op;  232.3 MB/s
-    readreverse :  0.724 micros/op;  152.9 MB/s
-
-LevelDB compacts its underlying storage data in the background to
-improve read performance.  The results listed above were done
-immediately after a lot of random writes.  The results after
-compactions (which are usually triggered automatically) are better.
-
-    readrandom  : 11.602 micros/op;  (approximately 85,000 reads per second)
-    readseq     :  0.423 micros/op;  261.8 MB/s
-    readreverse :  0.663 micros/op;  166.9 MB/s
-
-Some of the high cost of reads comes from repeated decompression of blocks
-read from disk.  If we supply enough cache to the leveldb so it can hold the
-uncompressed blocks in memory, the read performance improves again:
-
-    readrandom  : 9.775 micros/op;  (approximately 100,000 reads per second before compaction)
-    readrandom  : 5.215 micros/op;  (approximately 190,000 reads per second after compaction)
 
 ## Repository contents
 
