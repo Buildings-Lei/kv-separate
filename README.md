@@ -61,7 +61,7 @@
 
 This project supports [CMake](https://cmake.org/) out of the box.
 
-### 写性能
+## 写性能
 
 leveldb
  
@@ -74,9 +74,11 @@ KVDB
     fillseq      :       2069.794 micros/op;   483.1 MB/s     
     fillrandom   :       2118.600 micros/op;   472.0 MB/s     
     overwrite    :       2123.194 micros/op;   471.0 MB/s
+### 分析：
+1. 对于大value的场景下，若不进行kv分离，LSM tree 中的底层很快就会被占满，需要向上合并，造成频繁的compact，进一步放大了写放大。若是kv分离以后，一个kv对所占用的空间极少，compact的触发的频次下降。减少了写放大，提高了写入的效率。
+2. imm 转到 sst 的过程中，后台压缩线程会让主线程进入等待的状态，若不进行kv分离，一个imm很快就被占满，进入压缩状态，后续的put则需要等待。降低了写入效率。
 
-
-### 读性能
+## 读性能
 
 leveldb
 
@@ -103,7 +105,6 @@ KVDB
 2. 访问一个sst，可以跳过的kv对数更多，查找的也就更快。更大概率减少了无效的查找。
 
 # make & run
-
 ## Build for POSIX
 
 Quick start:
