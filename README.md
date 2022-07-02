@@ -11,20 +11,20 @@
   * levelDB 具有写放大和读放大，KVDB 因为kv分离了，可减少写放大和读放大，提高运行的效率。
 
 # 数据组织形式
-  *    record :=
-  *    checksum: uint32     // crc32c of type and data[] ; little-endian
-  *    length: uint16       // record的长度
-  *    Sequence: uint64     // record 中的第一对kv所对应的sequence
-  *    kv Number：uint16    // 这个record 中所具有的kv对的数量 
-  *    data:               //  保存的数据
+      record :
+      checksum: uint32     // crc32c of type and data[] ; little-endian
+      length: uint16       // record的长度
+      Sequence: uint64     // record 中的第一对kv所对应的sequence
+      kv Number：uint16    // 这个record 中所具有的kv对的数量 
+      data:                //  保存的数据
 
-* log中的data 的数据格式为：
-* data：
-*    type:           uint8         // 是否要进行kv分离
-*    keysize:        uint16        // key的长度    
-*    key:                          // key值
-*    valuesize:      uint16        // value 的长度
-*    value:                        // value值
+ log中的data 的数据格式为：
+ data：
+    type:           uint8         // 是否要进行kv分离
+    keysize:        uint16        // key的长度    
+    key:                          // key值
+    valuesize:      uint16        // value 的长度
+    value:                        // value值
 
 # 写流程
 
