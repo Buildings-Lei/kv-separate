@@ -65,9 +65,9 @@ This project supports [CMake](https://cmake.org/) out of the box.
 
   leveldb
   
-      fillseq      :       5.549 micros/op;   19.9 MB/s     
-      fillrandom   :      11.597 micros/op;    9.5 MB/s     
-      overwrite    :      14.144 micros/op;    7.8 MB/s
+      fillseq      :       7865.658 micros/op;   127.1 MB/s     
+      fillrandom   :      108742.624 micros/op;    9.2 MB/s     
+      overwrite    :      184634.483 micros/op;    5.4 MB/s
   
   KVDB
   
@@ -77,32 +77,34 @@ This project supports [CMake](https://cmake.org/) out of the box.
 ### 分析：
 1. 对于大value的场景下，若不进行kv分离，LSM tree 中的底层很快就会被占满，需要向上合并，造成频繁的compact，进一步放大了写放大。若是kv分离以后，一个kv对所占用的空间极少，compact的触发的频次下降。减少了写放大，提高了写入的效率。
 2. imm 转到 sst 的过程中，后台压缩线程会让主线程进入等待的状态，若不进行kv分离，一个imm很快就被占满，进入压缩状态，后续的put则需要等待。降低了写入效率。
+3. 整体上，写入的效率KVDB是要好的。这是因为leveldb在大value下的频繁的compact的原因。
 
 ## 读性能
 
   leveldb
 
-    readrandom   :       6.219 micros/op; (1000000 of 1000000 found)   
-    readrandom   :       5.026 micros/op; (1000000 of 1000000 found)     
-    readseq      :       0.531 micros/op;  208.4 MB/s
-    compact      : 2189861.000 micros/op;
-    readrandom   :       3.718 micros/op; (1000000 of 1000000 found)
-    readseq      :       0.477 micros/op;  231.7 MB/s
-    fill100K     :    3313.683 micros/op;   28.8 MB/s (1000 ops)
+    readrandom   :       13804.489 micros/op; (43405 of 50000 found)   
+    readrandom   :       3558.571 micros/op; (43374 of 50000 found)     
+    readseq      :       1325.517 micros/op; 
+    compact      :       1014576010.000 micros/op;
+    readrandom   :       3452.342 micros/op; (43318 of 50000 found)
+    readseq      :       977.001 micros/op;
+    fill100K     :    14104.420 micros/op;   6.8 MB/s (1000 ops)
 
   KVDB
 
     readrandom   :       3926.204 micros/op; (43405 of 50000 found)     
     readrandom   :       4732.702 micros/op; (43374 of 50000 found)
-    readseq      :       1.285 micros/op;   18.6 MB/s
-    compact      :  218021.000 micros/op;
+    readseq      :       1.285 micros/op; 
+    compact      :       218021.000 micros/op;
     readrandom   :       5023.581 micros/op; (43318 of 50000 found)
-    readseq      :       0.653 micros/op;   36.4 MB/s
+    readseq      :       0.653 micros/op; 
     fill100K     :     12432.440 micros/op;  7.7 MB/s (1000 ops)
 
 ### 分析：
 1. 对于大value的场景下，kv分离以后，mem, imm, sst中存储的kv对数更多，内存中可缓存的sst也更多了，从概率上看，在内存中找到所需要的key的概率更大。
 2. 访问一个sst，可以跳过的kv对数更多，查找的也就更快。更大概率减少了无效的查找。
+3. 从压缩的时间来看，leveldb的压缩时间远大于KVDB的，也表明了大value下leveldb所要compact的次数多。fill100K 表明当写小value的时候，两者是相差无几的。
 
 # MAKE && RUN
 
