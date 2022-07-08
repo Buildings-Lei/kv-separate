@@ -2,20 +2,20 @@
 
 
 # 特点
-  * keys 和 value 的分离可根据阈值进行动态的分离，即在KVDB中，可实时的根据不同的业务需求进行分离阈值的调整。
-  * 对于小于阈值的key-value 对，并没有进行分离，而是采用leveldb一样的存放的方式，都是放入sst当中。
-  * 在leveldb的基础上增加了垃圾回收的机制，垃圾回收的线程在后台进行，KVDB运行的线程的优先级是 主线程 > Compact 线程 > 后台垃圾回收线程。
-  * 垃圾回收支持自动在线回收和手动回收，同时在打开数据的时候也可选择是否要进行垃圾回收。
+  * keys 和 value 的分离可根据阈值进行动态分离，即在KVDB中，可实时根据不同的业务需求进行分离阈值调整。
+  * 对于小于阈值的key-value 对，并没有进行分离，而是采用leveldb一样存放方式，都是放入sst当中。
+  * 在leveldb的基础上增加了垃圾回收机制，垃圾回收线程在后台进行，KVDB运行的线程优先级是 主线程 > Compact 线程 > 后台垃圾回收线程。
+  * 垃圾回收支持自动在线回收和手动回收，同时在打开数据时也可选择是否要进行垃圾回收。
   * 若是没有开启在线垃圾回收，将支持快照，若是在数据库运行期间发生了快照，那么快照以后的数据都不进行垃圾回收。
-  * 可进行手动设置 每一个valuelog的大小。
+  * 可进行手动设置 每一个valuelog 大小。
   * levelDB 具有写放大和读放大，KVDB 因为kv分离了，可减少写放大和读放大，提高运行的效率。
 
 # 数据组织形式
       record :
       checksum: uint32     // crc32c of type and data[] ; little-endian
       length: uint16       // record的长度
-      Sequence: uint64     // record 中的第一对kv所对应的sequence
-      kv Number：uint16    // 这个record 中所具有的kv对的数量 
+      Sequence: uint64     // record 中第一对kv所对应的sequence
+      kv Number：uint16    // 这个record 中所具有的kv对数
       data:                //  保存的数据
 
       log中的data 的数据格式为：
@@ -26,11 +26,11 @@
            valuesize:      uint16        // value 的长度
            value:                        // value值
 
-      data中的value的数据格式为：  
-      若是不分离的则value保存的是存入的值，如是需要分离的则保存为以下的格式     
+      data中value的数据格式为：  
+      若是不分离则value保存的是存入的值，如是需要分离则保存为以下的格式     
       value:
-          file number:    uint64        // kv对需要存入的log的编号
-          offset:         uint64        // 这个kv对的起始位置在log中的偏移，方便get的时候读取，采用随机读取方式
+          file number:    uint64        // kv对需要存入log的编号
+          offset:         uint64        // 这个kv对起始位置在log中偏移，方便get的时候读取，采用随机读取方式
           kv_value_size:  uint64        // 指record中第一个kv对开始到该kv对的偏移
 
 ![image](https://github.com/Buildings-Lei/kv-separate/blob/main/image/format.png)
@@ -40,10 +40,10 @@
 写入batch中。 若是小于阈值，则将会按照leveldb中原本的方式进行存储。
   
 # 读流程
-先从mem，imm和LSM 中查找到key值对应的value的值，解析出来后，若是已经kv分离的话，value保存的是log文件编号，偏移地址，以及value的大小。查找到的值若是不分离的，直接返回，若是分离的，则需要根据value的值，进一步去log文件中查找。
+先从mem，imm和LSM 中查找到key值对应的value的值，解析出来后，若是已经kv分离的话，value保存的是log文件编号，偏移地址，以及value的大小。查找到的值若是不分离的，直接返回，若是分离，则需要根据value的值，进一步去log文件中查找。
 
 # garbage collection 
-创建一个独立后台线程，对需删除的vlog文件中的无效 kv 进行删除，有效 kv重新存储到数据库中。利用管理类决定哪些vlog文件需删除。重新存储方案：为保证 有效 kv 重新存储的正确性，不影响后续 kv 对的正确存储，采用预分配时间序列的策略，在具体回收前，先为其分配一段不影响查找准确性的seq给有效kv对。
+创建一个独立后台线程，对需删除的vlog文件中无效 kv 进行删除，有效 kv重新存储到数据库中。利用管理类决定哪些vlog文件需删除。重新存储方案：为保证 有效 kv 重新存储的正确性，不影响后续 kv 对正确存储，采用预分配时间序列的策略，在具体回收前，先为其分配一段不影响查找准确性的seq给有效kv对。
 # 性能测试
 
  ## 测试环境
@@ -116,29 +116,6 @@ Quick start:
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build .
 ```
-
-## Building for Windows
-
-First generate the Visual Studio 2017 project/solution files:
-
-```cmd
-mkdir build
-cd build
-cmake -G "Visual Studio 15" ..
-```
-The default default will build for x86. For 64-bit run:
-
-```cmd
-cmake -G "Visual Studio 15 Win64" ..
-```
-
-To compile the Windows solution from the command-line:
-
-```cmd
-devenv /build Debug leveldb.sln
-```
-
-or open leveldb.sln in Visual Studio and build from within.
 
 Please see the CMake documentation and `CMakeLists.txt` for more advanced usage.
 
